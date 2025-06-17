@@ -1,0 +1,60 @@
+
+project_name: modular-python-trading-bot
+purpose: >
+  Build a reproducible, production-ready Python bot that trades U.S. equities/ETFs
+  using a combined momentum + mean-reversion core, optional ML overlay,
+  and robust risk controls.  Target: outperform SPY on risk-adjusted basis
+  using only free or freely-registered data/APIs.
+
+overall_goals:
+  - Research → backtest → paper/live path in 15 sprints
+  - Zero cost data pipelines (Alpaca, Polygon Basic, yfinance)
+  - Strict IS/OOS evaluation (2022-01 → 2024-12 train, 2025-01 → 2025-04 test)
+  - CI-enforced performance guardrails before live execution
+  - Dockerised, cloud-deployable final stack
+
+rules_constraints:
+  - Python 3.11, no paid data/services
+  - No sprint may assume tools/configs not introduced in earlier sprints
+  - One-bar look-ahead protection in all backtests
+  - Commission $0.005/share + 5 bp slippage baked into tests
+  - Paper/live trading (Alpaca REST) only after Sprint 11
+  - Reproducibility: lock params to YAML, version data with parquet
+
+preferred_tools_libraries:
+  core:
+    - pandas, numpy, pyarrow
+    - vectorbt (fast vectorised) OR backtrader (event-driven)
+    - ta (technical indicators)
+    - scikit-learn, xgboost (optional ML)
+    - alpaca-trade-api, polygon-api-client, yfinance
+  infra:
+    - poetry (package/venv), pytest, black, isort, pre-commit
+    - loguru (logging), GitHub Actions (CI), Docker
+    - pyyaml (config), numba (speed-ups)
+
+data_sources:
+  - alpaca_data_v2: free EOD + 15-min delayed US stocks/ETFs
+  - polygon_basic: free delayed minute/Daily bars
+  - yfinance: fallback daily adjusted bars
+  - stooq: historical daily CSV (no splits — adjust locally)
+
+directory_structure:
+  .
+  ├── config/               # YAMLs for params, creds (never commit secrets)
+  ├── data/                 # Parquet/CSV cache (git-ignored)
+  ├── notebooks/            # Exploratory research
+  ├── src/
+  │   ├── tradingbot/
+  │   │   ├── data/         # ingestion & cleaning
+  │   │   ├── features/
+  │   │   ├── signals/
+  │   │   ├── strategies/
+  │   │   ├── risk/
+  │   │   ├── backtest/
+  │   │   ├── exec/         # live/paper adapters
+  │   │   └── reports/
+  ├── tests/                # pytest suites
+  ├── scripts/              # CLI helpers
+  ├── pyproject.toml        # (Poetry) deps & tooling
+  └── README.md

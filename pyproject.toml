@@ -1,0 +1,30 @@
+[project]
+name = "tradingbot"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Sahil Virani",email = "sahilvirani2004@gmail.com"}
+]
+readme = "README.md"
+requires-python = "^3.11"
+dependencies = [
+    "numpy (<2.3)",
+    "pandas (>=2.3.0,<3.0.0)",
+    "ta (>=0.11.0,<0.12.0)",
+    "yfinance (>=0.2.63,<0.3.0)",
+    "loguru (>=0.7.3,<0.8.0)",
+    "pyyaml (>=6.0.2,<7.0.0)",
+    "vectorbt (>=0.27.3,<0.28.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.0"
+black = "^25.1.0"
+isort = "^6.0.1"
+pre-commit = "^4.2.0"
+

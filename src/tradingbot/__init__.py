@@ -1,1 +1,1 @@
-# Trading Bot Package 
+# Trading Bot Package

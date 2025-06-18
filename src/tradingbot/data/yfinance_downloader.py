@@ -1,6 +1,7 @@
 # File: src/tradingbot/data/yfinance_downloader.py
 
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 import yfinance as yf
@@ -20,10 +21,17 @@ def download_stock_data(
 
     if path.exists() and not refresh:
         logger.info(f"Using cached data: {path}")
-        return pd.read_csv(path, index_col=0, parse_dates=True)
+        # Skip the first 2 rows which contain multi-level headers (Price, Ticker, Date)
+        df = pd.read_csv(path, index_col=0, parse_dates=True, skiprows=[1, 2])
+        # Ensure numeric columns are properly typed
+        numeric_cols = ["Open", "High", "Low", "Close", "Volume"]
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+        return df
 
     logger.info(f"{'Refreshing' if refresh else 'Downloading'} {symbol}...")
-    df = yf.download(symbol, interval=interval, start=start)
+    df = cast(pd.DataFrame, yf.download(symbol, interval=interval, start=start))
 
     # Create the data directory if it doesn't exist
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -142,7 +142,7 @@ cython_debug/
 .vscode/
 
 # Project specific
-data/
+data/*.csv
 config/*.yaml
 config/*.json
 !config/example*.yaml
@@ -159,4 +159,3 @@ logs/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 

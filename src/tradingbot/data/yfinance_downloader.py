@@ -21,8 +21,10 @@ def download_stock_data(
 
     if path.exists() and not refresh:
         logger.info(f"Using cached data: {path}")
-        # Skip the first 2 rows which contain multi-level headers (Price, Ticker, Date)
+        # Skip rows 1 and 2 which contain ticker names and empty Date row
         df = pd.read_csv(path, index_col=0, parse_dates=True, skiprows=[1, 2])
+        # Set proper index name
+        df.index.name = "Date"
         # Ensure numeric columns are properly typed
         numeric_cols = ["Open", "High", "Low", "Close", "Volume"]
         for col in numeric_cols:
@@ -32,6 +34,12 @@ def download_stock_data(
 
     logger.info(f"{'Refreshing' if refresh else 'Downloading'} {symbol}...")
     df = cast(pd.DataFrame, yf.download(symbol, interval=interval, start=start))
+
+    # Handle multi-level columns from yfinance
+    if isinstance(df.columns, pd.MultiIndex):
+        # Flatten multi-level columns by taking the first level
+        # (e.g., 'Close' from ('Close', 'MSFT'))
+        df.columns = df.columns.get_level_values(0)
 
     # Create the data directory if it doesn't exist
     path.parent.mkdir(parents=True, exist_ok=True)

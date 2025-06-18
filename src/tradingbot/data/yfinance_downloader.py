@@ -24,6 +24,10 @@ def download_stock_data(
 
     logger.info(f"{'Refreshing' if refresh else 'Downloading'} {symbol}...")
     df = yf.download(symbol, interval=interval, start=start)
+
+    # Create the data directory if it doesn't exist
+    path.parent.mkdir(parents=True, exist_ok=True)
+
     df.to_csv(path)
     logger.info(f"Saved to cache: {path}")
     return df

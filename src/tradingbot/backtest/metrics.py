@@ -5,8 +5,10 @@ import pandas as pd
 from tradingbot.backtest.vbt_runner import run_backtest
 
 
-def backtest_metrics(price: pd.Series, signal: pd.Series) -> dict[str, float]:
-    pf = run_backtest(price, signal)
+def backtest_metrics(
+    price: pd.Series, signal: pd.Series, df_full: pd.DataFrame | None = None
+) -> dict[str, float]:
+    pf = run_backtest(price, signal, df_full=df_full)
 
     # Extract scalar values from potentially Series results
     total_return = pf.total_return()

@@ -1,0 +1,4 @@
+# File: config/slack_example.yaml
+slack:
+  token: "xoxb-XXXXXXXXXXXXXXXX"
+  channel: "#trading-bot" 

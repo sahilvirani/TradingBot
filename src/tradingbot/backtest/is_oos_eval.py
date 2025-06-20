@@ -7,7 +7,7 @@ import pandas as pd
 
 from tradingbot.backtest.metrics import backtest_metrics
 from tradingbot.backtest.save_params import load_saved_params
-from tradingbot.data.sp500_top50 import get_top50_symbols
+from tradingbot.data.sp500_top50 import SP500_TOP50
 from tradingbot.data.yfinance_downloader import download_stock_data
 from tradingbot.signals.mean_reversion import generate_mr_signal
 from tradingbot.signals.momentum import generate_mom_signal
@@ -23,7 +23,7 @@ def run_is_oos_test(
     oos_start: str = "2025-01-02",
     oos_end: str = "2025-05-01",
 ):
-    symbols = symbols or get_top50_symbols()
+    symbols = symbols or SP500_TOP50
     cfgs = load_saved_params()  # from Sprint 10
     rows = []
 

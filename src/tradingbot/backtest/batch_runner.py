@@ -21,11 +21,14 @@ def grid_search_batch(
 ) -> pd.DataFrame:
     """
     Runs parameter grid across multiple tickers and returns aggregated metrics.
+    SPRINT 14: Expanded grid to include looser thresholds for more trading activity.
     """
     universe = get_universe(universe)
     rows = []
+    # SPRINT 14: Expanded MR grid to include looser -0.5 threshold
     mr_grid = dict(enter_thresh=[-0.5, -1.0], window=[20, 40])
-    mom_grid = dict(long_thresh=[0.05], short_thresh=[-0.05], window=[21])
+    # SPRINT 14: Expanded momentum grid to include looser ±0.01 thresholds
+    mom_grid = dict(long_thresh=[0.01, 0.05], short_thresh=[-0.01, -0.05], window=[21])
 
     for symbol in universe:
         df = download_stock_data(symbol, start=start)

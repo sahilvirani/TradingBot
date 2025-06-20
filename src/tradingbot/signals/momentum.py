@@ -11,8 +11,8 @@ from tradingbot.features.momentum_features import (
 def generate_mom_signal(
     df: pd.DataFrame,
     window: int = 21,
-    long_thresh: float = 0.02,
-    short_thresh: float = -0.02,
+    long_thresh: float = 0.01,
+    short_thresh: float = -0.01,
     use_vol_adjust: bool = False,
 ) -> pd.Series:
     """

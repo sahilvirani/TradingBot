@@ -9,7 +9,7 @@ from tradingbot.features.base_features import compute_rolling_zscore
 
 def generate_mr_signal(
     df: pd.DataFrame,
-    enter_thresh: float = -1.0,
+    enter_thresh: float = -0.5,
     exit_thresh: float = 0.0,
     window: int = 20,
 ) -> pd.Series:
@@ -34,8 +34,8 @@ def generate_mr_signal(
 
 def generate_mr_long_short(
     df: pd.DataFrame,
-    long_enter: float = -1.0,
-    short_enter: float = 1.0,
+    long_enter: float = -0.5,
+    short_enter: float = 0.5,
     exit_thresh: float = 0.0,
     window: int = 20,
 ) -> pd.Series:

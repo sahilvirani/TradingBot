@@ -4,8 +4,20 @@ from pathlib import Path
 from typing import cast
 
 import pandas as pd
+import yaml
 import yfinance as yf
 from loguru import logger
+
+# Load default backtest date range from config
+_cfg_path = Path("config/tradingbot.yaml")
+if _cfg_path.exists():
+    _cfg = yaml.safe_load(_cfg_path.read_text()) or {}
+    _bt_cfg = _cfg.get("backtest", {})
+    DEFAULT_START = _bt_cfg.get("start_date", "2015-01-01")
+    DEFAULT_END = _bt_cfg.get("end_date", None)
+else:
+    DEFAULT_START = "2015-01-01"
+    DEFAULT_END = None
 
 
 def get_cache_path(symbol: str, interval: str) -> Path:
@@ -14,9 +26,16 @@ def get_cache_path(symbol: str, interval: str) -> Path:
 
 
 def download_stock_data(
-    symbol: str, interval: str = "1d", start: str = "2020-01-01", refresh: bool = False
+    symbol: str,
+    interval: str = "1d",
+    start: str = DEFAULT_START,
+    end: str | None = DEFAULT_END,
+    refresh: bool = False,
 ) -> pd.DataFrame:
-    """Download stock data and cache to CSV unless refresh=True."""
+    """Download stock data and cache to CSV unless refresh=True.
+
+    If `end` is None, data is downloaded up to today.
+    """
     path = get_cache_path(symbol, interval)
 
     if path.exists() and not refresh:
@@ -33,7 +52,10 @@ def download_stock_data(
         return df
 
     logger.info(f"{'Refreshing' if refresh else 'Downloading'} {symbol}...")
-    df = cast(pd.DataFrame, yf.download(symbol, interval=interval, start=start))
+    df = cast(
+        pd.DataFrame,
+        yf.download(symbol, interval=interval, start=start, end=end),
+    )
 
     # Handle multi-level columns from yfinance
     if isinstance(df.columns, pd.MultiIndex):

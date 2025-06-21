@@ -4,6 +4,7 @@ from typing import Dict, List
 
 import pandas as pd
 
+from tradingbot.signals.cross_sectional import compute_return_matrix, rank_top_n_df
 from tradingbot.signals.mean_reversion import generate_mr_signal
 from tradingbot.signals.momentum import generate_mom_signal
 from tradingbot.signals.regime_filter import apply_regime_filter
@@ -37,6 +38,37 @@ def run_strategy(
     dict[str, pd.Series]
         Mapping of ticker -> signal Series aligned to the DataFrame index.
     """
+
+    # Cross-sectional strategy path
+    if strategy_config.get("cross_sectional", False):
+        n = int(strategy_config.get("top_n", 5))
+        if n <= 0:
+            raise ValueError("top_n must be positive for cross-sectional strategy")
+
+        if strategy_config["signals"] == ["momentum"]:
+            metric_df = compute_return_matrix(data, window=60)
+            selection = rank_top_n_df(metric_df, n, highest=True)
+        elif strategy_config["signals"] == ["mean_reversion"]:
+            metric_df = compute_return_matrix(data, window=5)
+            selection = rank_top_n_df(metric_df, n, highest=False)
+        else:
+            raise ValueError(
+                "Cross-sectional strategy must specify exactly one "
+                "signal type (momentum or mean_reversion)"
+            )
+
+        allowed_regimes = tuple(
+            strategy_config.get("allowed_regimes", ("calm", "normal"))
+        )
+        signals_cs: Dict[str, pd.Series] = {
+            col: apply_regime_filter(
+                pd.Series(selection[col].astype(int)), allowed=allowed_regimes
+            )
+            for col in selection.columns
+        }
+        return signals_cs
+
+    # ---- single‐stock (non cross-sectional) logic below ----
 
     signal_names: List[str] = strategy_config.get("signals", [])
     if not signal_names:

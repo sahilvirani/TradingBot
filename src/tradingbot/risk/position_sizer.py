@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from tradingbot.risk.atr import compute_atr
+from tradingbot.risk.atr import calc_atr
 
 
 def atr_position_size(
@@ -16,7 +16,7 @@ def atr_position_size(
     Shares = (risk_per_trade * equity) / (2 * ATR)   [2 ATR stop distance]
     Leverage is capped by Kelly fraction.
     """
-    atr = compute_atr(df)
+    atr = calc_atr(df)
     dollar_risk = risk_per_trade * init_equity
     shares = dollar_risk / (2 * atr.replace(0, np.nan))
     max_shares = init_equity * kelly_frac / df["Close"]

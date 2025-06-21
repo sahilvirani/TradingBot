@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Dict, List
 
+import numpy as np
 import pandas as pd
 
+from tradingbot.risk.atr import calc_atr, position_size
 from tradingbot.signals.cross_sectional import compute_return_matrix, rank_top_n_df
 from tradingbot.signals.mean_reversion import generate_mr_signal
 from tradingbot.signals.momentum import generate_mom_signal
@@ -96,3 +98,99 @@ def run_strategy(
         results[ticker] = combined
 
     return results
+
+
+# ---------------------------------------------------------------------------
+# Simple ATR-based sizing & trailing-stop back-tester (long-only)
+# ---------------------------------------------------------------------------
+
+
+def backtest_with_atr(
+    strategy_conf: dict, data: Dict[str, pd.DataFrame], start_equity: float = 1_000_000
+) -> pd.Series:
+    """Back-test that sizes positions via ATR risk and applies a 2×ATR stop.
+
+    Parameters
+    ----------
+    strategy_conf : dict
+        Must contain key ``"signals_dict"`` mapping ticker → Series
+        (1 = long, 0 = flat) produced by the signal engine.
+    data : dict[str, pd.DataFrame]
+        Historical OHLCV data (must include High, Low, Close).
+    start_equity : float, default 1,000,000
+        Starting capital in dollars.
+
+    Returns
+    -------
+    pd.Series
+        Daily equity curve.
+    """
+
+    if "signals_dict" not in strategy_conf:
+        raise KeyError("strategy_conf must include 'signals_dict' for ATR back-test")
+
+    signals_dict: Dict[str, pd.Series] = strategy_conf["signals_dict"]
+
+    # Align all tickers to common date index (use first ticker as anchor)
+    dates = next(iter(data.values())).index
+
+    # Pre-compute ATR for each ticker
+    atr_map: Dict[str, pd.Series] = {t: calc_atr(df) for t, df in data.items()}
+
+    equity = pd.Series(start_equity, index=dates, dtype=float)
+    cash = start_equity
+
+    positions: Dict[str, int] = {t: 0 for t in data.keys()}
+    entry_price: Dict[str, float] = {t: np.nan for t in data.keys()}
+
+    for i in range(1, len(dates)):
+        today, prev_day = dates[i], dates[i - 1]
+
+        # ------------------------------------------------------------------
+        # 1) Check trailing-stop exits
+        # ------------------------------------------------------------------
+        for t, qty in list(positions.items()):
+            if qty == 0:
+                continue
+            price_today = data[t]["Close"].loc[today]
+            atr_today = atr_map[t].get(today, np.nan)
+            if np.isnan(atr_today):
+                continue
+
+            if price_today < entry_price[t] - 2 * atr_today:
+                # Exit – sell at market close
+                cash += qty * price_today
+                positions[t] = 0
+                entry_price[t] = np.nan
+
+        # ------------------------------------------------------------------
+        # 2) Entries from signals (end of previous day)
+        # ------------------------------------------------------------------
+        for t, sig in signals_dict.items():
+            if positions[t] != 0:
+                continue  # already in position
+
+            if sig.loc[prev_day] > 0:
+                atr_prev = atr_map[t].get(prev_day, np.nan)
+                if np.isnan(atr_prev):
+                    continue
+                qty = position_size(equity.loc[prev_day], atr_prev)
+                price_prev = data[t]["Close"].loc[prev_day]
+                cost = qty * price_prev
+                if qty > 0 and cost <= cash:
+                    cash -= cost
+                    positions[t] = qty
+                    entry_price[t] = price_prev
+
+        # ------------------------------------------------------------------
+        # 3) Mark-to-market portfolio equity
+        # ------------------------------------------------------------------
+        portfolio_val = cash + sum(
+            positions[t] * data[t]["Close"].loc[today]
+            for t in positions
+            if positions[t] > 0
+        )
+
+        equity.iloc[i] = portfolio_val
+
+    return equity

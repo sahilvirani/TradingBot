@@ -19,10 +19,15 @@ def calc_sharpe(daily_returns: pd.Series, risk_free_rate: float = 0.0) -> float:
         Daily risk-free rate (already in daily terms, *not annual*).
     """
     excess_ret = daily_returns - risk_free_rate
+    # Check if all returns are identical (constant)
+    if excess_ret.nunique() == 1:
+        return 0.0
+
     # Population std (ddof=0) to match most finance libraries when annualising
     std = excess_ret.std(ddof=0)
-    if std == 0 or pd.isna(std):
+    if pd.isna(std) or std == 0:
         return 0.0
+
     sharpe = (excess_ret.mean() / std) * np.sqrt(252)
     return float(sharpe)
 
@@ -66,13 +71,16 @@ def calc_cagr(equity_curve: pd.Series) -> float:
     if start_value <= 0:
         return 0.0
 
-    # Ensure we have datetime index
+    # Ensure we have datetime index and calculate time difference
     if not isinstance(equity_curve.index, pd.DatetimeIndex):
         return 0.0
 
-    days = (equity_curve.index[-1] - equity_curve.index[0]).days
+    # Calculate time difference in days
+    time_delta = equity_curve.index[-1] - equity_curve.index[0]
+    days = time_delta.total_seconds() / (24 * 3600)  # Convert to days
     if days <= 0:
         return 0.0
 
     years = days / 365.25
-    return float((end_value / start_value) ** (1 / years) - 1.0)
+    cagr = ((end_value / start_value) ** (1 / years)) - 1.0
+    return float(cagr)

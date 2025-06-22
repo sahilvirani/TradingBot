@@ -1,0 +1,9 @@
+strategies:
+  - name: "TestStrategy"
+    signals: ["momentum"]
+    cross_sectional: false
+    allowed_regimes: ["calm", "normal"]
+
+backtest:
+  start_date: "2022-01-01"
+  end_date: "2022-12-31" 

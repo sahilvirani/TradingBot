@@ -6,7 +6,12 @@ import numpy as np
 import pandas as pd
 
 from tradingbot.risk.atr import calc_atr, position_size
-from tradingbot.signals.cross_sectional import compute_return_matrix, rank_top_n_df
+from tradingbot.risk.vix_filter import throttle_risk_pct
+from tradingbot.signals.cross_sectional import (
+    compute_return_matrix,
+    rank_top_n_df,
+    universe_momentum_ok,
+)
 from tradingbot.signals.mean_reversion import generate_mr_signal
 from tradingbot.signals.momentum import generate_mom_signal
 from tradingbot.signals.regime_filter import apply_regime_filter
@@ -68,6 +73,14 @@ def run_strategy(
             )
             for col in selection.columns
         }
+
+        # Apply cash buffer logic if enabled
+        if strategy_config.get("cash_buffer", False):
+            ok_series = universe_momentum_ok(metric_df)
+            for ticker in signals_cs:
+                # Zero out signals when universe momentum is negative
+                signals_cs[ticker] = signals_cs[ticker].where(ok_series, 0)
+
         return signals_cs
 
     # ---- single‐stock (non cross-sectional) logic below ----
@@ -106,7 +119,13 @@ def run_strategy(
 
 
 def backtest_with_atr(
-    strategy_conf: dict, data: Dict[str, pd.DataFrame], start_equity: float = 1_000_000
+    strategy_conf: dict,
+    data: Dict[str, pd.DataFrame],
+    start_equity: float = 1_000_000,
+    *,
+    risk_pct: float = 0.003,
+    atr_window: int = 14,
+    stop_mult: float = 2.0,
 ) -> pd.Series:
     """Back-test that sizes positions via ATR risk and applies a 2×ATR stop.
 
@@ -119,6 +138,12 @@ def backtest_with_atr(
         Historical OHLCV data (must include High, Low, Close).
     start_equity : float, default 1,000,000
         Starting capital in dollars.
+    risk_pct : float, default 0.003
+        Risk percentage per day.
+    atr_window : int, default 14
+        ATR window for calculating ATR.
+    stop_mult : float, default 2.0
+        Multiplier for ATR to determine stop loss.
 
     Returns
     -------
@@ -135,7 +160,9 @@ def backtest_with_atr(
     dates = next(iter(data.values())).index
 
     # Pre-compute ATR for each ticker
-    atr_map: Dict[str, pd.Series] = {t: calc_atr(df) for t, df in data.items()}
+    atr_map: Dict[str, pd.Series] = {
+        t: calc_atr(df, window=atr_window) for t, df in data.items()
+    }
 
     equity = pd.Series(start_equity, index=dates, dtype=float)
     cash = start_equity
@@ -153,11 +180,12 @@ def backtest_with_atr(
             if qty == 0:
                 continue
             price_today = data[t]["Close"].loc[today]
-            atr_today = atr_map[t].get(today, np.nan)
-            if np.isnan(atr_today):
+            atr_today_val = atr_map[t].get(today)
+            if atr_today_val is None or pd.isna(atr_today_val):
                 continue
+            atr_today = float(atr_today_val)
 
-            if price_today < entry_price[t] - 2 * atr_today:
+            if price_today < entry_price[t] - stop_mult * atr_today:
                 # Exit – sell at market close
                 cash += qty * price_today
                 positions[t] = 0
@@ -170,11 +198,18 @@ def backtest_with_atr(
             if positions[t] != 0:
                 continue  # already in position
 
-            if sig.loc[prev_day] > 0:
-                atr_prev = atr_map[t].get(prev_day, np.nan)
-                if np.isnan(atr_prev):
+            # Use safe lookup to avoid KeyError
+            sig_prev = sig.get(prev_day, 0)
+            if sig_prev is not None and sig_prev > 0:
+                atr_prev_val = atr_map[t].get(prev_day)
+                if atr_prev_val is None or pd.isna(atr_prev_val):
                     continue
-                qty = position_size(equity.loc[prev_day], atr_prev)
+                atr_prev = float(atr_prev_val)
+
+                # Apply VIX-based risk throttling
+                adj_risk = throttle_risk_pct(risk_pct, prev_day)
+                qty = position_size(equity.loc[prev_day], atr_prev, risk_pct=adj_risk)
+
                 price_prev = data[t]["Close"].loc[prev_day]
                 cost = qty * price_prev
                 if qty > 0 and cost <= cash:

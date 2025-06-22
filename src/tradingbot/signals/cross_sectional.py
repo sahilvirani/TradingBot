@@ -32,6 +32,14 @@ def rank_top_n_df(
     return selection
 
 
+def universe_momentum_ok(metric_df: pd.DataFrame) -> pd.Series:
+    """
+    Returns a boolean Series (index = dates):
+    True when average momentum across universe > 0.
+    """
+    return metric_df.mean(axis=1) > 0
+
+
 def compute_return_matrix(
     price_data: Dict[str, pd.DataFrame], window: int = 60
 ) -> pd.DataFrame:

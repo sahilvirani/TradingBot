@@ -54,3 +54,8 @@ SP500_TOP50 = [
     "CAT",  # Caterpillar Inc.
     "GS",  # Goldman Sachs Group Inc.
 ]
+
+
+def get_top50_symbols() -> list[str]:
+    """Return the list of top 50 S&P 500 symbols."""
+    return SP500_TOP50

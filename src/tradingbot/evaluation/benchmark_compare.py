@@ -93,6 +93,7 @@ def benchmark_comparison(
     universe: List[str],
     *,
     risk_pct: float = 0.003,
+    stop_mult: float = 2.0,
     use_atr_overlay: bool = True,
     return_dict: bool = False,
 ) -> dict | None:
@@ -102,6 +103,8 @@ def benchmark_comparison(
     ----------
     risk_pct : float
         Risk percentage passed to ATR overlay.
+    stop_mult : float
+        Multiplier for ATR overlay.
     use_atr_overlay : bool, default True
         If True, run the ATR‐sized simulator; otherwise fall back to equal-weight logic.
     return_dict : bool, default False
@@ -123,7 +126,7 @@ def benchmark_comparison(
             start_equity=1_000_000,
             risk_pct=risk_pct,
             atr_window=14,
-            stop_mult=2.0,
+            stop_mult=stop_mult,
         )
         daily_ret = equity.pct_change().fillna(0)
     else:
@@ -137,10 +140,8 @@ def benchmark_comparison(
     dates = equity.index
     start_str = str(pd.Timestamp(dates[0]).date())
     end_str = str(pd.Timestamp(dates[-1]).date())
-    spy_df = download_stock_data("SPY", start=start_str, end=end_str)
-    spy_price = (
-        spy_df["Close"].reindex(dates).fillna(method="ffill").fillna(method="bfill")
-    )
+    spy_price = _load_spy_price(start_str, end_str)
+    spy_price = spy_price.reindex(dates).fillna(method="ffill").fillna(method="bfill")
     spy_equity = spy_price / spy_price.iloc[0]
     spy_ret = spy_equity.pct_change().fillna(0)
 
@@ -211,9 +212,9 @@ def benchmark_comparison(
         strat_start_val, strat_end_val = strat_slice.iloc[0], strat_slice.iloc[-1]
         spy_start_val, spy_end_val = spy_slice.iloc[0], spy_slice.iloc[-1]
 
-        strat_ret_period = strat_end_val / strat_start_val - 1.0
-        spy_ret_period = spy_end_val / spy_start_val - 1.0
-        excess = strat_ret_period - spy_ret_period
+        strat_ret_period = float(strat_end_val / strat_start_val - 1.0)
+        spy_ret_period = float(spy_end_val / spy_start_val - 1.0)
+        excess = float(strat_ret_period - spy_ret_period)
         print(
             (
                 f"{start} to {end}: Strategy {strat_ret_period*100:.1f}%, "
@@ -233,3 +234,15 @@ def benchmark_comparison(
 
     # also support external param
     return None
+
+
+def _load_spy_price(start: str, end: str) -> pd.Series:
+    """
+    Return SPY daily CLOSE (price-only) so we compare like-with-like.
+    """
+    import yfinance as yf
+
+    spy_data = yf.download("SPY", start=start, end=end, progress=False)
+    spy_close = spy_data["Close"]
+    spy_close.name = "SPY"
+    return spy_close

@@ -81,6 +81,13 @@ def run_strategy(
                 # Zero out signals when universe momentum is negative
                 signals_cs[ticker] = signals_cs[ticker].where(ok_series, 0)
 
+        # For long-only strategies, filter out negative signals
+        if not strategy_config.get("long_short", False):
+            for ticker in signals_cs:
+                signals_cs[ticker] = signals_cs[ticker].where(
+                    signals_cs[ticker] >= 0, 0
+                )
+
         return signals_cs
 
     # ---- single‐stock (non cross-sectional) logic below ----
@@ -108,6 +115,11 @@ def run_strategy(
 
         # Apply regime filter
         combined = apply_regime_filter(combined, allowed=allowed_regimes)
+
+        # For long-only strategies, filter out negative signals
+        if not strategy_config.get("long_short", False):
+            combined = combined.where(combined >= 0, 0)
+
         results[ticker] = combined
 
     return results
@@ -185,11 +197,17 @@ def backtest_with_atr(
                 continue
             atr_today = float(atr_today_val)
 
-            if price_today < entry_price[t] - stop_mult * atr_today:
-                # Exit – sell at market close
-                cash += qty * price_today
+            exit_triggered = False
+            if qty > 0 and price_today < entry_price[t] - stop_mult * atr_today:
+                exit_triggered = True
+            elif qty < 0 and price_today > entry_price[t] + stop_mult * atr_today:
+                exit_triggered = True
+
+            if exit_triggered:
+                # EXIT (close position)
+                cash += qty * price_today  # Add position value back to cash
                 positions[t] = 0
-                entry_price[t] = np.nan
+                entry_price[t] = float("nan")
 
         # ------------------------------------------------------------------
         # 2) Entries from signals (end of previous day)
@@ -200,7 +218,7 @@ def backtest_with_atr(
 
             # Use safe lookup to avoid KeyError
             sig_prev = sig.get(prev_day, 0)
-            if sig_prev is not None and sig_prev > 0:
+            if sig_prev is not None and sig_prev != 0:
                 atr_prev_val = atr_map[t].get(prev_day)
                 if atr_prev_val is None or pd.isna(atr_prev_val):
                     continue
@@ -208,12 +226,20 @@ def backtest_with_atr(
 
                 # Apply VIX-based risk throttling
                 adj_risk = throttle_risk_pct(risk_pct, prev_day)
-                qty = position_size(equity.loc[prev_day], atr_prev, risk_pct=adj_risk)
+                base_qty = position_size(
+                    equity.loc[prev_day], atr_prev, risk_pct=adj_risk
+                )
+                qty = int(
+                    base_qty * sig_prev
+                )  # +base_qty for long, -base_qty for short
 
                 price_prev = data[t]["Close"].loc[prev_day]
-                cost = qty * price_prev
-                if qty > 0 and cost <= cash:
-                    cash -= cost
+                cost = abs(qty) * price_prev
+                if cost <= cash or qty < 0:  # allow proceeds to fund shorts
+                    if qty < 0:  # SHORT ENTRY
+                        cash += cost  # receive cash
+                    else:  # LONG ENTRY
+                        cash -= cost  # pay cash
                     positions[t] = qty
                     entry_price[t] = price_prev
 
@@ -223,7 +249,7 @@ def backtest_with_atr(
         portfolio_val = cash + sum(
             positions[t] * data[t]["Close"].loc[today]
             for t in positions
-            if positions[t] > 0
+            if positions[t] != 0  # Include both positive and negative positions
         )
 
         equity.iloc[i] = portfolio_val

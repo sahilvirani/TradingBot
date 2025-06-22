@@ -18,17 +18,40 @@ def calc_sharpe(daily_returns: pd.Series, risk_free_rate: float = 0.0) -> float:
     risk_free_rate : float, default 0.0
         Daily risk-free rate (already in daily terms, *not annual*).
     """
-    excess_ret = daily_returns - risk_free_rate
-    # Check if all returns are identical (constant)
-    if excess_ret.nunique() == 1:
+    # Ensure we have a proper Series
+    if not isinstance(daily_returns, pd.Series):
         return 0.0
+
+    excess_ret = daily_returns - risk_free_rate
+
+    # Check if all returns are identical (constant)
+    try:
+        unique_count = excess_ret.nunique()
+        if unique_count == 1:
+            return 0.0
+    except (TypeError, ValueError):
+        # Fallback: check if std is effectively zero
+        pass
 
     # Population std (ddof=0) to match most finance libraries when annualising
     std = excess_ret.std(ddof=0)
-    if pd.isna(std) or std == 0:
+
+    # Handle case where std might be a Series or scalar
+    if hasattr(std, "iloc"):
+        std = float(std.iloc[0]) if len(std) > 0 else 0.0
+    else:
+        std = float(std) if not pd.isna(std) else 0.0
+
+    if std == 0:
         return 0.0
 
-    sharpe = (excess_ret.mean() / std) * np.sqrt(252)
+    mean_ret = excess_ret.mean()
+    if hasattr(mean_ret, "iloc"):
+        mean_ret = float(mean_ret.iloc[0]) if len(mean_ret) > 0 else 0.0
+    else:
+        mean_ret = float(mean_ret) if not pd.isna(mean_ret) else 0.0
+
+    sharpe = (mean_ret / std) * np.sqrt(252)
     return float(sharpe)
 
 
@@ -70,6 +93,10 @@ def calc_cagr(equity_curve: pd.Series) -> float:
     end_value = float(equity_curve.iloc[-1])
     if start_value <= 0:
         return 0.0
+
+    # Handle negative end values (total loss scenarios)
+    if end_value <= 0:
+        return -1.0  # Return -100% CAGR for total loss
 
     # Ensure we have datetime index
     if not isinstance(equity_curve.index, pd.DatetimeIndex):

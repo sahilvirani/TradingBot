@@ -16,9 +16,8 @@ def generate_mom_signal(
     use_vol_adjust: bool = False,
 ) -> pd.Series:
     """
-    Momentum signal:
+    Momentum signal (long-only):
       +1  if momentum > long_thresh
-      -1  if momentum < short_thresh
        0  otherwise
     """
     mom = (
@@ -29,5 +28,6 @@ def generate_mom_signal(
 
     signal = pd.Series(0, index=df.index)
     signal[mom > long_thresh] = 1
-    signal[mom < short_thresh] = -1
+    # Remove short signals for baseline compatibility
+    # signal[mom < short_thresh] = -1
     return signal

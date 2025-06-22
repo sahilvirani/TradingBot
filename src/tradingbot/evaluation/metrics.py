@@ -71,16 +71,16 @@ def calc_cagr(equity_curve: pd.Series) -> float:
     if start_value <= 0:
         return 0.0
 
-    # Ensure we have datetime index and calculate time difference
+    # Ensure we have datetime index
     if not isinstance(equity_curve.index, pd.DatetimeIndex):
         return 0.0
 
-    # Calculate time difference in days
-    time_delta = equity_curve.index[-1] - equity_curve.index[0]
-    days = time_delta.total_seconds() / (24 * 3600)  # Convert to days
+    # Calculate time difference in years
+    start_date = equity_curve.index[0]
+    end_date = equity_curve.index[-1]
+    days = (end_date - start_date).days
     if days <= 0:
         return 0.0
 
     years = days / 365.25
-    cagr = ((end_value / start_value) ** (1 / years)) - 1.0
-    return float(cagr)
+    return float(((end_value / start_value) ** (1 / years)) - 1.0)

@@ -21,8 +21,10 @@ def test_max_drawdown():
 
 
 def test_cagr():
+    # Create a series that starts at 1.0 and ends at 2.0 over exactly one year
     idx = pd.date_range("2020-01-01", "2021-01-01", freq="D")
-    equity = pd.Series(1 + (idx.dayofyear / idx.dayofyear.max()), index=idx)
+    equity = pd.Series(1.0, index=idx)  # Start at 1.0
+    equity.iloc[-1] = 2.0  # End at 2.0
     # Roughly doubles in one year -> CAGR ~100%
     cagr = calc_cagr(equity)
     assert 0.95 < cagr < 1.05

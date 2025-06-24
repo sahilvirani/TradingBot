@@ -27,7 +27,10 @@ def _gen_signal_by_type(signal_type: str, df: pd.DataFrame) -> pd.Series:
 
 
 def run_strategy(
-    strategy_config: dict, data: Dict[str, pd.DataFrame]
+    strategy_config: dict, 
+    data: Dict[str, pd.DataFrame],
+    spy_series: pd.Series = None,
+    vix_series: pd.Series = None,
 ) -> Dict[str, pd.Series]:
     """Run a strategy for each ticker based on configuration.
 
@@ -39,6 +42,10 @@ def run_strategy(
         - "allowed_regimes": Optional list[str] of regimes to keep (default calm+normal)
     data : dict[str, pd.DataFrame]
         Mapping of ticker -> price DataFrame (must contain "Close")
+    spy_series : pd.Series, optional
+        Pre-loaded SPY series to avoid downloads
+    vix_series : pd.Series, optional
+        Pre-loaded VIX series to avoid downloads
 
     Returns
     -------
@@ -69,7 +76,10 @@ def run_strategy(
         )
         signals_cs: Dict[str, pd.Series] = {
             col: apply_regime_filter(
-                pd.Series(selection[col].astype(int)), allowed=allowed_regimes
+                pd.Series(selection[col].astype(int)), 
+                allowed=allowed_regimes,
+                vix_series=vix_series,
+                spy_series=spy_series,
             )
             for col in selection.columns
         }
@@ -113,8 +123,13 @@ def run_strategy(
                 combined[(combined > 0) & (s <= 0)] = 0  # long only if all agree long
                 combined[(combined < 0) & (s >= 0)] = 0  # short only if all agree short
 
-        # Apply regime filter
-        combined = apply_regime_filter(combined, allowed=allowed_regimes)
+        # Apply regime filter with cached series
+        combined = apply_regime_filter(
+            combined, 
+            allowed=allowed_regimes,
+            vix_series=vix_series,
+            spy_series=spy_series,
+        )
 
         # For long-only strategies, filter out negative signals
         if not strategy_config.get("long_short", False):
@@ -138,7 +153,9 @@ def backtest_with_atr(
     risk_pct: float = 0.003,
     atr_window: int = 14,
     stop_mult: float = 2.0,
-) -> pd.Series:
+    return_fills: bool = False,
+    vix_series: pd.Series = None,
+) -> pd.Series | tuple[pd.Series, pd.DataFrame]:
     """Back-test that sizes positions via ATR risk and applies a 2×ATR stop.
 
     Parameters
@@ -156,11 +173,15 @@ def backtest_with_atr(
         ATR window for calculating ATR.
     stop_mult : float, default 2.0
         Multiplier for ATR to determine stop loss.
+    return_fills : bool, default False
+        If True, return tuple of (equity, fills_df); else just equity.
+    vix_series : pd.Series, optional
+        Pre-loaded VIX series to avoid downloads in risk throttling.
 
     Returns
     -------
-    pd.Series
-        Daily equity curve.
+    pd.Series or tuple[pd.Series, pd.DataFrame]
+        Daily equity curve, optionally with trade fills DataFrame.
     """
 
     if "signals_dict" not in strategy_conf:
@@ -181,6 +202,10 @@ def backtest_with_atr(
 
     positions: Dict[str, int] = {t: 0 for t in data.keys()}
     entry_price: Dict[str, float] = {t: np.nan for t in data.keys()}
+    entry_dates: Dict[str, pd.Timestamp] = {t: None for t in data.keys()}
+
+    # Trade log storage
+    fills = []
 
     for i in range(1, len(dates)):
         today, prev_day = dates[i], dates[i - 1]
@@ -204,10 +229,24 @@ def backtest_with_atr(
                 exit_triggered = True
 
             if exit_triggered:
+                # Record the fill
+                if return_fills:
+                    pnl = qty * (price_today - entry_price[t])
+                    fills.append({
+                        "symbol": t,
+                        "open_time": entry_dates[t],
+                        "open_price": entry_price[t],
+                        "close_time": today,
+                        "close_price": price_today,
+                        "pnl": pnl,
+                        "side": "buy" if qty > 0 else "sell"
+                    })
+                
                 # EXIT (close position)
                 cash += qty * price_today  # Add position value back to cash
                 positions[t] = 0
                 entry_price[t] = float("nan")
+                entry_dates[t] = None
 
         # ------------------------------------------------------------------
         # 2) Entries from signals (end of previous day)
@@ -224,8 +263,8 @@ def backtest_with_atr(
                     continue
                 atr_prev = float(atr_prev_val)
 
-                # Apply VIX-based risk throttling
-                adj_risk = throttle_risk_pct(risk_pct, prev_day)
+                # Apply VIX-based risk throttling with cached series
+                adj_risk = throttle_risk_pct(risk_pct, prev_day, vix_series=vix_series)
                 base_qty = position_size(
                     equity.loc[prev_day], atr_prev, risk_pct=adj_risk
                 )
@@ -242,6 +281,7 @@ def backtest_with_atr(
                         cash -= cost  # pay cash
                     positions[t] = qty
                     entry_price[t] = price_prev
+                    entry_dates[t] = prev_day
 
         # ------------------------------------------------------------------
         # 3) Mark-to-market portfolio equity
@@ -254,4 +294,24 @@ def backtest_with_atr(
 
         equity.iloc[i] = portfolio_val
 
-    return equity
+    # Close any remaining positions at the end
+    final_date = dates[-1]
+    for t, qty in positions.items():
+        if qty != 0 and return_fills:
+            price_final = data[t]["Close"].loc[final_date]
+            pnl = qty * (price_final - entry_price[t])
+            fills.append({
+                "symbol": t,
+                "open_time": entry_dates[t],
+                "open_price": entry_price[t],
+                "close_time": final_date,
+                "close_price": price_final,
+                "pnl": pnl,
+                "side": "buy" if qty > 0 else "sell"
+            })
+
+    if return_fills:
+        fills_df = pd.DataFrame(fills)
+        return equity, fills_df
+    else:
+        return equity

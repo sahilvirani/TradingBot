@@ -5,6 +5,7 @@ from typing import List, Tuple
 import pandas as pd
 
 from tradingbot.data.yfinance_downloader import download_stock_data
+from tradingbot.data.market_benchmarks import get_spy
 from tradingbot.evaluation.metrics import (
     calc_cagr,
     calc_max_drawdown,
@@ -96,6 +97,10 @@ def benchmark_comparison(
     stop_mult: float = 2.0,
     use_atr_overlay: bool = True,
     return_dict: bool = False,
+    collect_fills: bool = False,
+    start_capital: float = 1_000_000,
+    start_date: str = "2015-01-01",
+    end_date: str = "2023-12-31",
 ) -> dict | None:
     """Benchmark *strategy_conf*.
 
@@ -109,9 +114,17 @@ def benchmark_comparison(
         If True, run the ATR‐sized simulator; otherwise fall back to equal-weight logic.
     return_dict : bool, default False
         If True, return metrics dictionary; else print and return None.
+    collect_fills : bool, default False
+        If True, collect fills; else return None.
+    start_capital : float, default 1_000_000
+        Starting capital for the strategy.
+    start_date : str, default "2015-01-01"
+        Start date for data download.
+    end_date : str, default "2023-12-31"
+        End date for data download.
     """
     # Download price data for universe
-    price_data = {ticker: download_stock_data(ticker) for ticker in universe}
+    price_data = {ticker: download_stock_data(ticker, start=start_date, end=end_date) for ticker in universe}
 
     # ------------------------------------------------------------------
     # Build equity curve
@@ -120,27 +133,42 @@ def benchmark_comparison(
         # Use runner to generate signals first
         signals_dict = run_strategy(strategy_conf, price_data)
 
-        equity = backtest_with_atr(
-            {"signals_dict": signals_dict},
-            price_data,
-            start_equity=1_000_000,
-            risk_pct=risk_pct,
-            atr_window=14,
-            stop_mult=stop_mult,
-        )
+        if collect_fills:
+            result = backtest_with_atr(
+                {"signals_dict": signals_dict},
+                price_data,
+                start_equity=start_capital,
+                risk_pct=risk_pct,
+                atr_window=14,
+                stop_mult=stop_mult,
+                return_fills=True,
+            )
+            equity, fills = result
+        else:
+            equity = backtest_with_atr(
+                {"signals_dict": signals_dict},
+                price_data,
+                start_equity=start_capital,
+                risk_pct=risk_pct,
+                atr_window=14,
+                stop_mult=stop_mult,
+                return_fills=False,
+            )
+            fills = pd.DataFrame()  # Empty DataFrame
         daily_ret = equity.pct_change().fillna(0)
     else:
         # fall back to equal-weight legacy path
         signals_dict = run_strategy(strategy_conf, price_data)
         equity, daily_ret = _simulate_simple_long_only(
-            1.0, universe, price_data, signals_dict
+            start_capital, universe, price_data, signals_dict
         )
+        fills = pd.DataFrame()  # Empty DataFrame for legacy path
 
     # Build SPY equity curve over same dates
     dates = equity.index
     start_str = str(pd.Timestamp(dates[0]).date())
     end_str = str(pd.Timestamp(dates[-1]).date())
-    spy_price = _load_spy_price(start_str, end_str)
+    spy_price = get_spy(start_str, end_str)
     spy_price = spy_price.reindex(dates).fillna(method="ffill").fillna(method="bfill")
     spy_equity = spy_price / spy_price.iloc[0]
     spy_ret = spy_equity.pct_change().fillna(0)
@@ -225,24 +253,16 @@ def benchmark_comparison(
 
     # Return dictionary if requested
     if return_dict:
-        return {
+        result = {
             "sharpe": float(strat_sharpe),
             "max_dd": float(strat_maxdd),
             "excess_periods": int(sum(1 for v in excess_list if v > 0)),
             "trades": int((daily_ret != 0).sum()),
+            "equity": equity,
         }
+        if collect_fills:
+            result["fills"] = fills
+        return result
 
     # also support external param
     return None
-
-
-def _load_spy_price(start: str, end: str) -> pd.Series:
-    """
-    Return SPY daily CLOSE (price-only) so we compare like-with-like.
-    """
-    import yfinance as yf
-
-    spy_data = yf.download("SPY", start=start, end=end, progress=False)
-    spy_close = spy_data["Close"]
-    spy_close.name = "SPY"
-    return spy_close

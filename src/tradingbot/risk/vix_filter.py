@@ -1,44 +1,54 @@
 from functools import lru_cache
-from pathlib import Path
-
 import pandas as pd
-import yfinance as yf
-
-_CACHE = Path("data/vix_close.parquet")
-
-
-def _download_and_cache() -> pd.Series:
-    """Download VIX data and cache it locally."""
-    try:
-        vix_data = yf.download("^VIX", start="2010-01-01", progress=False)
-        if vix_data is None or vix_data.empty:
-            return pd.Series(dtype=float)
-        vix = vix_data["Close"]
-        _CACHE.parent.mkdir(exist_ok=True)
-        vix.to_frame("Close").to_parquet(_CACHE)
-        return vix
-    except Exception:
-        # Return empty series if download fails
-        return pd.Series(dtype=float)
-
+from tradingbot.data.market_benchmarks import get_vix_series
 
 @lru_cache(maxsize=1)
-def vix_series() -> pd.Series:
-    """Get VIX series from cache or download if needed."""
-    if _CACHE.exists():
-        try:
-            return pd.read_parquet(_CACHE)["Close"]
-        except Exception:
-            pass
-    return _download_and_cache()
+def cached_vix_series():
+    v = get_vix_series()        # cached parquet, never re-downloads
+    v.index = pd.to_datetime(v.index)
+    return v
 
-
-def throttle_risk_pct(base_risk: float, date: pd.Timestamp, thr: float = 25.0) -> float:
-    """Return reduced risk when VIX > threshold."""
+def throttle_risk_pct(base_risk: float, date, vix_series=None) -> float:
+    """
+    Throttle risk based on VIX level at given date.
+    
+    Parameters
+    ----------
+    base_risk : float
+        Base risk percentage
+    date : pd.Timestamp or str
+        Date to check VIX level for
+    vix_series : pd.Series, optional
+        Pre-loaded VIX series. If None, will load from cache.
+        
+    Returns
+    -------
+    float
+        Adjusted risk percentage
+    """
     try:
-        vix = vix_series()
-        if date in vix.index and vix.loc[date] > thr:
-            return base_risk * 0.5  # cut risk in half above threshold
-        return base_risk
+        if vix_series is None:
+            vix_data = cached_vix_series()  # Use the cached singleton
+        else:
+            vix_data = vix_series  # Use provided series
+            
+        if isinstance(date, str):
+            date = pd.to_datetime(date)
+        
+        # Get VIX value for the date (use nearest available)
+        vix_val = vix_data.asof(date)
+        
+        if pd.isna(vix_val):
+            return base_risk
+            
+        # Simple throttling: reduce risk when VIX > 30
+        if vix_val > 30:
+            return base_risk * 0.5  # Half risk during high volatility
+        elif vix_val > 20:
+            return base_risk * 0.75  # Reduce risk moderately
+        else:
+            return base_risk  # Normal risk
+            
     except Exception:
+        # Fallback to base risk if VIX data unavailable
         return base_risk

@@ -2,10 +2,7 @@
 
 from pathlib import Path
 from typing import cast
-
-import pandas as pd
-import yaml
-import yfinance as yf
+import pandas as pd, yfinance as yf, time, yaml
 from loguru import logger
 
 # Load default backtest date range from config
@@ -19,53 +16,34 @@ else:
     DEFAULT_START = "2015-01-01"
     DEFAULT_END = None
 
+CACHE_DIR = Path("data"); CACHE_DIR.mkdir(exist_ok=True)
 
 def get_cache_path(symbol: str, interval: str) -> Path:
     """Return local cache path for a given symbol and interval."""
     return Path("data") / f"{symbol}_{interval}.csv"
 
+def _dl(ticker, start, end):
+    raw = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+    if isinstance(raw.columns, pd.MultiIndex):
+        raw.columns = raw.columns.get_level_values(0)
+    return raw
 
-def download_stock_data(
-    symbol: str,
-    interval: str = "1d",
-    start: str = DEFAULT_START,
-    end: str | None = DEFAULT_END,
-    refresh: bool = False,
-) -> pd.DataFrame:
-    """Download stock data and cache to CSV unless refresh=True.
-
-    If `end` is None, data is downloaded up to today.
+def download_stock_data(ticker: str, *, start: str, end: str, refresh=False, max_retry=5) -> pd.DataFrame:
     """
-    path = get_cache_path(symbol, interval)
-
-    if path.exists() and not refresh:
-        logger.info(f"Using cached data: {path}")
-        # Skip rows 1 and 2 which contain ticker names and empty Date row
-        df = pd.read_csv(path, index_col=0, parse_dates=True, skiprows=[1, 2])
-        # Set proper index name
-        df.index.name = "Date"
-        # Ensure numeric columns are properly typed
-        numeric_cols = ["Open", "High", "Low", "Close", "Volume"]
-        for col in numeric_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
-        return df
-
-    logger.info(f"{'Refreshing' if refresh else 'Downloading'} {symbol}...")
-    df = cast(
-        pd.DataFrame,
-        yf.download(symbol, interval=interval, start=start, end=end),
-    )
-
-    # Handle multi-level columns from yfinance
-    if isinstance(df.columns, pd.MultiIndex):
-        # Flatten multi-level columns by taking the first level
-        # (e.g., 'Close' from ('Close', 'MSFT'))
-        df.columns = df.columns.get_level_values(0)
-
-    # Create the data directory if it doesn't exist
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    df.to_csv(path)
-    logger.info(f"Saved to cache: {path}")
-    return df
+    Load from parquet cache. If file exists but is EMPTY, treat as stale and refresh.
+    """
+    fp = CACHE_DIR / f"{ticker}_{start}_{end}.parquet"
+    if fp.exists():
+        df = pd.read_parquet(fp)
+        if len(df) and not refresh:
+            return df
+        # cached but empty → force refresh
+    for k in range(max_retry):
+        df = _dl(ticker, start, end)
+        if len(df):
+            df.to_parquet(fp, index=True)
+            return df
+        wait = 2 ** k
+        print(f"⚠️  {ticker} empty – retrying in {wait}s")
+        time.sleep(wait)
+    raise RuntimeError(f"{ticker} empty after {max_retry} attempts")

@@ -141,12 +141,26 @@ cython_debug/
 # VS Code
 .vscode/
 
-# Project specific
+# Project specific - Data cache and outputs
 data/*.csv
+data/*.parquet
+data/*.pkl
+data/*.h5
 config/*.yaml
 config/*.json
 !config/example*.yaml
 !config/example*.json
+
+# Output directories
+out/
+reports/
+results/
+output/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
 
 # Logs
 *.log
@@ -159,3 +173,9 @@ logs/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
+
+# Trading bot specific
+# Keep data directory structure but ignore cached files
+!data/.gitkeep
+!out/.gitkeep
+!reports/.gitkeep

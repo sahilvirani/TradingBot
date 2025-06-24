@@ -73,6 +73,22 @@ def load_spy_vol(start: str = "2015-01-01", window: int = 21) -> pd.Series:
             raise ValueError(f"Failed to download SPY data: {e}")
 
 
+def load_vix_cached(vix_series: pd.Series, start: str = "2015-01-01") -> pd.Series:
+    """Use pre-loaded VIX series, filtering from start date."""
+    vix_filtered = vix_series.loc[vix_series.index >= start].copy()
+    vix_filtered.name = "VIX"
+    return vix_filtered
+
+
+def load_spy_vol_cached(spy_series: pd.Series, start: str = "2015-01-01", window: int = 21) -> pd.Series:
+    """Compute rolling volatility from pre-loaded SPY series."""
+    spy_filtered = spy_series.loc[spy_series.index >= start].copy()
+    ret = spy_filtered.pct_change()
+    vol = ret.rolling(window).std() * (252**0.5)
+    vol.name = "SPY_vol"
+    return vol
+
+
 def compute_regime(vix: pd.Series, spy_vol: pd.Series) -> pd.Series:
     """
     Regime:

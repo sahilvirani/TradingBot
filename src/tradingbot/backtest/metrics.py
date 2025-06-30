@@ -38,4 +38,5 @@ def backtest_metrics(
         "Sharpe": float(sharpe),
         "MaxDD[%]": float(max_dd * 100),
         "Trades": int(trades),
+        "Max_DD": float(max_dd),  # raw decimal (negative) for compatibility
     }

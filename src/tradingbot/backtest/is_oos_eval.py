@@ -28,7 +28,7 @@ def run_is_oos_test(
     rows = []
 
     for sym in symbols:
-        df = download_stock_data(sym, start=is_start)
+        df = download_stock_data(sym, start=is_start, end=oos_end)
         df_is = df.loc[is_start:is_end]
         df_oos = df.loc[oos_start:oos_end]
 

@@ -1,7 +1,7 @@
 # File: src/tradingbot/data/yfinance_downloader.py
 
 from pathlib import Path
-from typing import cast
+from typing import cast, Optional
 import pandas as pd, yfinance as yf, time, yaml
 from loguru import logger
 
@@ -28,10 +28,14 @@ def _dl(ticker, start, end):
         raw.columns = raw.columns.get_level_values(0)
     return raw
 
-def download_stock_data(ticker: str, *, start: str, end: str, refresh=False, max_retry=5) -> pd.DataFrame:
+def download_stock_data(ticker: str, *, start: str, end: Optional[str] = None, refresh=False, max_retry=5) -> pd.DataFrame:
     """
     Load from parquet cache. If file exists but is EMPTY, treat as stale and refresh.
     """
+    # Use default end date if not provided
+    if end is None:
+        end = DEFAULT_END or pd.Timestamp.now().strftime("%Y-%m-%d")
+    
     fp = CACHE_DIR / f"{ticker}_{start}_{end}.parquet"
     if fp.exists():
         df = pd.read_parquet(fp)

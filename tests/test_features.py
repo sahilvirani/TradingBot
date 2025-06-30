@@ -11,7 +11,7 @@ from tradingbot.features.ta_indicators import add_technical_indicators
 
 
 def test_feature_generation():
-    df = download_stock_data("AAPL", interval="1d", start="2023-01-01")
+    df = download_stock_data("AAPL", start="2023-01-01")
     df = add_technical_indicators(df)
     df["returns"] = compute_daily_returns(df)
     close_series = cast(pd.Series, df["Close"])  # explicit cast for type checker

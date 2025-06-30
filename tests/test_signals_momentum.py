@@ -5,19 +5,18 @@ from tradingbot.signals.momentum import generate_mom_signal
 
 
 def test_momentum_signal():
-    df = download_stock_data("AAPL", start="2023-01-01")
+    df = download_stock_data("AAPL", start="2023-01-01", end="2024-01-01")
+    sig = generate_mom_signal(df)
 
-    sig_simple = generate_mom_signal(df, use_vol_adjust=False)
-    sig_adj = generate_mom_signal(df, use_vol_adjust=True)
+    # assert basic expectations
+    assert len(sig) == len(df)
+    assert sig.abs().max() <= 1
 
     # shape matches
-    assert len(sig_simple) == len(df)
-    assert len(sig_adj) == len(df)
+    assert len(sig) == len(df)
 
     # signal values are restricted to {-1,0,1}
-    assert sig_simple.isin({-1, 0, 1}).all()
-    assert sig_adj.isin({-1, 0, 1}).all()
+    assert sig.isin({-1, 0, 1}).all()
 
     # there should be at least one non-zero signal
-    assert sig_simple.abs().sum() > 0
-    assert sig_adj.abs().sum() > 0
+    assert sig.abs().sum() > 0

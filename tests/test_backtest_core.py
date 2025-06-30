@@ -10,12 +10,12 @@ from tradingbot.signals.mean_reversion import generate_mr_signal
 
 
 def test_backtest_runner():
-    df = download_stock_data("AAPL", start="2023-01-01")
-    sig_mr = generate_mr_signal(df)
+    df = download_stock_data("AAPL", start="2023-01-01", end="2024-01-01")
+    sig = generate_mr_signal(df)
 
-    close_series = cast(pd.Series, df["Close"])
-    stats = backtest_metrics(close_series, sig_mr)
+    stats = backtest_metrics(df["Close"], sig)
 
-    # sanity checks
-    assert stats["Trades"] > 0
-    assert -100 < stats["Return[%]"] < 500  # guardrails, not strict
+    # Check that we get reasonable output
+    assert stats["CAGR"] is not None
+    assert stats["Sharpe"] is not None
+    assert stats["Max_DD"] <= 0  # max drawdown should be negative

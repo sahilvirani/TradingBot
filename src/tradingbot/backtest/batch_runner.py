@@ -31,9 +31,7 @@ def grid_search_batch(
     mom_grid = dict(long_thresh=[0.01, 0.05], short_thresh=[-0.01, -0.05], window=[21])
 
     for symbol in universe:
-        df = download_stock_data(symbol, start=start)
-        if end:
-            df = df.loc[:end]
+        df = download_stock_data(symbol, start=start, end=end)
 
         for mr_params in product(*mr_grid.values()):
             enter_thresh, window_mr = mr_params

@@ -293,6 +293,7 @@ def run_all(start, end, capital, risk_pct, universe):
     print("="*60)
     cols_to_show = ["total_return_%","alpha_%","sharpe","max_dd","win_rate_%","num_trades"]
     print(df[cols_to_show].round(2))
+    print("\nPerformance vs SPY")
     print(f"\n📊 SPY Benchmark: {spy_return_pct:.1f}% return | Sharpe {spy_sharpe:.2f} | Max DD {spy_dd:.1%}")
     print("="*60)
 

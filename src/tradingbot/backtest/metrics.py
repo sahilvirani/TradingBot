@@ -27,8 +27,14 @@ def backtest_metrics(
     if isinstance(trades, pd.Series):
         trades = trades.iloc[0]
 
+    # calculate CAGR
+    days = len(price)
+    years = days / 252 if days else 1
+    cagr = (1 + total_return) ** (1 / years) - 1
+
     return {
         "Return[%]": float(total_return * 100),
+        "CAGR": float(cagr * 100),
         "Sharpe": float(sharpe),
         "MaxDD[%]": float(max_dd * 100),
         "Trades": int(trades),

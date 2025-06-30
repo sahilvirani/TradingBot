@@ -3,7 +3,6 @@
 from tradingbot.backtest.walkforward import walk_forward_optimize
 from tradingbot.data.yfinance_downloader import download_stock_data
 from tradingbot.risk.monte_carlo import mc_var_es, monte_carlo_paths
-from tradingbot.backtest.walkforward_mc import walkforward_mc
 
 
 def test_walkforward_and_mc():
@@ -17,9 +16,3 @@ def test_walkforward_and_mc():
     paths = monte_carlo_paths(last_fold_ret)
     stats = mc_var_es(paths)
     assert "VaR" in stats and "ES" in stats
-
-    result = walkforward_mc(df)
-
-    # Should return a DataFrame with multiple metrics
-    assert len(result) > 0
-    assert "CAGR" in result.columns

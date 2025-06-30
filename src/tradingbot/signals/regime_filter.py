@@ -2,22 +2,22 @@
 import pandas as pd
 
 from tradingbot.features.vol_regime import (
-    compute_regime, 
-    load_spy_vol, 
+    compute_regime,
+    load_spy_vol,
     load_vix,
     load_spy_vol_cached,
-    load_vix_cached
+    load_vix_cached,
 )
 
 
 def apply_regime_filter(
-    signal: pd.Series, 
+    signal: pd.Series,
     allowed: tuple[str, ...] = ("calm", "normal"),
     vix_series: pd.Series = None,
     spy_series: pd.Series = None,
 ) -> pd.Series:
     """Filter signals to only trade in allowed market regimes.
-    
+
     Parameters
     ----------
     signal : pd.Series

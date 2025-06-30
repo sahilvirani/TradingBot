@@ -27,7 +27,7 @@ def _gen_signal_by_type(signal_type: str, df: pd.DataFrame) -> pd.Series:
 
 
 def run_strategy(
-    strategy_config: dict, 
+    strategy_config: dict,
     data: Dict[str, pd.DataFrame],
     spy_series: pd.Series = None,
     vix_series: pd.Series = None,
@@ -76,7 +76,7 @@ def run_strategy(
         )
         signals_cs: Dict[str, pd.Series] = {
             col: apply_regime_filter(
-                pd.Series(selection[col].astype(int)), 
+                pd.Series(selection[col].astype(int)),
                 allowed=allowed_regimes,
                 vix_series=vix_series,
                 spy_series=spy_series,
@@ -125,7 +125,7 @@ def run_strategy(
 
         # Apply regime filter with cached series
         combined = apply_regime_filter(
-            combined, 
+            combined,
             allowed=allowed_regimes,
             vix_series=vix_series,
             spy_series=spy_series,
@@ -232,16 +232,18 @@ def backtest_with_atr(
                 # Record the fill
                 if return_fills:
                     pnl = qty * (price_today - entry_price[t])
-                    fills.append({
-                        "symbol": t,
-                        "open_time": entry_dates[t],
-                        "open_price": entry_price[t],
-                        "close_time": today,
-                        "close_price": price_today,
-                        "pnl": pnl,
-                        "side": "buy" if qty > 0 else "sell"
-                    })
-                
+                    fills.append(
+                        {
+                            "symbol": t,
+                            "open_time": entry_dates[t],
+                            "open_price": entry_price[t],
+                            "close_time": today,
+                            "close_price": price_today,
+                            "pnl": pnl,
+                            "side": "buy" if qty > 0 else "sell",
+                        }
+                    )
+
                 # EXIT (close position)
                 cash += qty * price_today  # Add position value back to cash
                 positions[t] = 0
@@ -300,15 +302,17 @@ def backtest_with_atr(
         if qty != 0 and return_fills:
             price_final = data[t]["Close"].loc[final_date]
             pnl = qty * (price_final - entry_price[t])
-            fills.append({
-                "symbol": t,
-                "open_time": entry_dates[t],
-                "open_price": entry_price[t],
-                "close_time": final_date,
-                "close_price": price_final,
-                "pnl": pnl,
-                "side": "buy" if qty > 0 else "sell"
-            })
+            fills.append(
+                {
+                    "symbol": t,
+                    "open_time": entry_dates[t],
+                    "open_price": entry_price[t],
+                    "close_time": final_date,
+                    "close_price": price_final,
+                    "pnl": pnl,
+                    "side": "buy" if qty > 0 else "sell",
+                }
+            )
 
     if return_fills:
         fills_df = pd.DataFrame(fills)

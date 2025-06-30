@@ -61,42 +61,42 @@ SP500_NEXT50 = [
     "ISRG",  # Intuitive Surgical Inc.
     "GILD",  # Gilead Sciences Inc.
     "CVS",  # CVS Health Corporation
-    "DE",   # Deere & Company
-    "GE",   # General Electric Company
+    "DE",  # Deere & Company
+    "GE",  # General Electric Company
     "NOW",  # ServiceNow Inc.
-    "VRTX", # Vertex Pharmaceuticals Incorporated
-    "MDLZ", # Mondelez International Inc.
-    "C",    # Citigroup Inc.
+    "VRTX",  # Vertex Pharmaceuticals Incorporated
+    "MDLZ",  # Mondelez International Inc.
+    "C",  # Citigroup Inc.
     "HON",  # Honeywell International Inc.
     "AXP",  # American Express Company
     "PFE",  # Pfizer Inc.
-    "BA",   # Boeing Company
+    "BA",  # Boeing Company
     "SYK",  # Stryker Corporation
-    "LRCX", # Lam Research Corporation
-    "KLAC", # KLA Corporation
+    "LRCX",  # Lam Research Corporation
+    "KLAC",  # KLA Corporation
     "ADI",  # Analog Devices Inc.
-    "SCHW", # Charles Schwab Corporation
+    "SCHW",  # Charles Schwab Corporation
     "AMP",  # Ameriprise Financial Inc.
-    "MU",   # Micron Technology Inc.
-    "PANW", # Palo Alto Networks Inc.
-    "REGN", # Regeneron Pharmaceuticals Inc.
+    "MU",  # Micron Technology Inc.
+    "PANW",  # Palo Alto Networks Inc.
+    "REGN",  # Regeneron Pharmaceuticals Inc.
     "MSI",  # Motorola Solutions Inc.
     "BMY",  # Bristol-Myers Squibb Company
-    "SO",   # Southern Company
+    "SO",  # Southern Company
     "MDT",  # Medtronic plc
     "PLD",  # Prologis Inc.
-    "CB",   # Chubb Limited
-    "SBUX", # Starbucks Corporation
+    "CB",  # Chubb Limited
+    "SBUX",  # Starbucks Corporation
     "AMT",  # American Tower Corporation
     "BLK",  # BlackRock Inc.
-    "MO",   # Altria Group Inc.
-    "T",    # AT&T Inc.
-    "TMUS", # T-Mobile US Inc.
-    "CI",   # Cigna Corporation
+    "MO",  # Altria Group Inc.
+    "T",  # AT&T Inc.
+    "TMUS",  # T-Mobile US Inc.
+    "CI",  # Cigna Corporation
     "APH",  # Amphenol Corporation
     "ZTS",  # Zoetis Inc.
     "LOW",  # Lowe's Companies Inc.
-    "GOOG", # Alphabet Inc. (Class C)
+    "GOOG",  # Alphabet Inc. (Class C)
     "DUK",  # Duke Energy Corporation
     "ICE",  # Intercontinental Exchange Inc.
     "EOG",  # EOG Resources Inc.

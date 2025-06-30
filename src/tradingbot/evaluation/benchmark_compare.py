@@ -124,7 +124,10 @@ def benchmark_comparison(
         End date for data download.
     """
     # Download price data for universe
-    price_data = {ticker: download_stock_data(ticker, start=start_date, end=end_date) for ticker in universe}
+    price_data = {
+        ticker: download_stock_data(ticker, start=start_date, end=end_date)
+        for ticker in universe
+    }
 
     # ------------------------------------------------------------------
     # Build equity curve

@@ -80,7 +80,9 @@ def load_vix_cached(vix_series: pd.Series, start: str = "2015-01-01") -> pd.Seri
     return vix_filtered
 
 
-def load_spy_vol_cached(spy_series: pd.Series, start: str = "2015-01-01", window: int = 21) -> pd.Series:
+def load_spy_vol_cached(
+    spy_series: pd.Series, start: str = "2015-01-01", window: int = 21
+) -> pd.Series:
     """Compute rolling volatility from pre-loaded SPY series."""
     spy_filtered = spy_series.loc[spy_series.index >= start].copy()
     ret = spy_filtered.pct_change()
